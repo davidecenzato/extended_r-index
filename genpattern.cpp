@@ -117,7 +117,7 @@ int main (int argc, char **argv)
 		// check pattern circularity
 		if( (ending - pat_pos) < plen )
 		{
-			if( !circular ){ continue; }
+			if( !circular || (ending - beginning + 1) < plen ){ continue; }
 			input.seekg(pat_pos, std::ios::beg);
 			input.read(buffer,(ending - pat_pos + 1));
 			input.seekg(beginning, std::ios::beg);

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, time, argparse, subprocess, os, datetime, multiprocessing, signal, re
-
+import sys, time, argparse, subprocess, os, datetime, multiprocessing, signal, re, struct
 
 Description = """
 Python script for testing the eBWT r-index
@@ -11,9 +10,9 @@ Adapted from a code by Massimiliano Rossi
 dirname         = os.path.dirname(os.path.abspath(__file__))
 
 #------------------------Executables--------------------------------------
-er_index_exe = "/home/davide/ebwt_r-index/er-index" 
-er_index_exe_64 = "/home/davide/ebwt_r-index/er-index64" 
-genpattern_exe = "/home/davide/ebwt_r-index/genpattern" 
+er_index_exe = "/home/davide/ebwt_r-index/build/er-index" 
+er_index_exe_64 = "/home/davide/ebwt_r-index/build/er-index64" 
+genpattern_exe = "/home/davide/ebwt_r-index/build/genpattern" 
 pfpebwt_exe = "/home/davide/rIndexEBWT/PFP-eBWT/pfpebwt"
 r_index_nic_count_exe = "/home/davide/r-indexNicola/r-index/build/ri-count"
 r_index_nic_locate_exe = "/home/davide/r-indexNicola/r-index/build/ri-locate"
@@ -45,10 +44,13 @@ def main():
     args.testdir = os.path.split(sys.argv[0])[0]
     # parameters
     datasets = [["salmonella_assemblies.fasta","salmonella_plain.fasta",32]]
-    len_patt = [100,1000,10000]
-    no_patt =  [100000,250000,400000,550000,700000,850000,1000000]
+    #len_patt = [100,1000,10000]
+    len_patt = [100]
+    #no_patt =  [100000,250000,400000,550000,700000,850000,1000000]
+    no_patt =  [1000]
 
     running = {
+        "gen-patterns": True,
         "er-index-count": True,
         "er-index-locate": True,
         "r-indexNicola-count": True,
@@ -70,7 +72,7 @@ def main():
 
     with open(csv_filename,"w") as csv_file:
         # Write CSV header 
-        csv_file.write("Datastructure,Nseq,SeqLen,Dataset,TotLength,Query,PattLen,NoPatt,Time,MemPeak,CPU\n")
+        csv_file.write("Datastructure,Nseq,SeqLen,Dataset,TotLength,Query,PattLen,NoPatt,Time,MemPeak,CPU,TotOcc,AvgOcc,SearchTime,PattTime,OccTime\n")
 
         # ---------- parsing of the input file
         start0 = start1 = start = time.time()
@@ -100,8 +102,9 @@ def main():
                     totlen = int(list(filter(('').__ne__, res.decode().split(" ")))[4].replace(",", ""))
                     avglen = float(list(filter(('').__ne__, res.decode().split(" ")))[6].replace(",", ""))
                     totlen2 = totlen + nseq
-                    
-                    if running["er-index-count"]:
+                    pattern_file = ""
+
+                    if running["gen-patterns"]:
                         # create pattern file
                         print("Computing pattern file of " + filename)
                         pattern_file = filename+"_"+str(plen)+"_"+str(nopat)+".pat"
@@ -109,74 +112,55 @@ def main():
                                                                                out=pattern_file)
                         print("=== " + command)
                         subprocess.check_output(command, shell=True)
+                    
+                    if running["er-index-count"]:
                         # create count command 
                         if( datasets[x][2] == 64 ):
-                            command = "{exe} {input} -q 0 -b 2 -f -v -p {pfile}".format(exe=er_index_exe_64, input=filename, pfile=pattern_file)
+                            command = "{exe} {input} -q 0 -f -v -p {pfile}".format(exe=er_index_exe_64, input=filename, pfile=pattern_file)
                             print(command)
                             csv_preamble = "eBWT r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "count" + "," + str(plen) + "," + str(nopat) + ","
                         else:
-                            command = "{exe} {input} -q 0 -b 2 -f -v -p {pfile}".format(exe=er_index_exe, input=filename, pfile=pattern_file)
+                            command = "{exe} {input} -q 0 -f -v -p {pfile}".format(exe=er_index_exe, input=filename, pfile=pattern_file)
                             print(command)
                             csv_preamble = "eBWT r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "count" + "," + str(plen) + "," + str(nopat) + ","
 
-                        running["er-index-count"] = test(command, dname, filename, testRINDEX_log_path, csv_file, csv_preamble)
+                        running["er-index-count"] = test(command, dname, filename+".eri", testRINDEX_log_path, csv_file, csv_preamble, filename+".stats")
 
                     if running["r-indexNicola-count"]:
-                        # create pattern file
-                        print("Computing pattern file of " + filename)
-                        pattern_file = filename+"_"+str(plen)+"_"+str(nopat)+".pat"
-                        command = "{exe} {input} {len} {nop} {out} 1 0".format(exe=genpattern_exe, input=filename, len=plen, nop=nopat,
-                                                                               out=pattern_file)
-                        print("=== " + command)
-                        subprocess.check_output(command, shell=True)
                         # create count command 
-                        command = "{exe} {index} {pfile}".format(exe=r_index_nic_count_exe, index=filename+".ri", pfile=pattern_file)
+                        command = "{exe} {index} {pfile}".format(exe=r_index_nic_count_exe, index=filename2+".ri", pfile=pattern_file)
                         print(command)
                         csv_preamble = "r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "count" + "," + str(plen) + "," + str(nopat) + ","
 
-                        running["r-indexNicola-count"] = test(command, dname, filename, testRINDEX_log_path, csv_file, csv_preamble)
+                        running["r-indexNicola-count"] = test(command, dname, filename2+".ri", testRINDEX_log_path, csv_file, csv_preamble, filename2+".ri.stats")
 
                     if running["er-index-locate"]:
-                        # create pattern file
-                        print("Computing pattern file of " + filename)
-                        pattern_file = filename+"_"+str(plen)+"_"+str(nopat)+".pat"
-                        command = "{exe} {input} {len} {nop} {out} 1 0".format(exe=genpattern_exe, input=filename, len=plen, nop=nopat,
-                                                                               out=pattern_file)
-                        print("=== " + command)
-                        subprocess.check_output(command, shell=True)
                         # create count command 
                         if( datasets[x][2] == 64 ):
-                            command = "{exe} {input} -q 1 -b 2 -f -v -p {pfile}".format(exe=er_index_exe_64, input=filename, pfile=pattern_file)
+                            command = "{exe} {input} -q 1 -f -v -p {pfile}".format(exe=er_index_exe_64, input=filename, pfile=pattern_file)
                             print(command)
                             csv_preamble = "eBWT r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "count" + ","
                         else:
-                            command = "{exe} {input} -q 1 -b 2 -f -v -p {pfile}".format(exe=er_index_exe, input=filename, pfile=pattern_file)
+                            command = "{exe} {input} -q 1 -f -v -p {pfile}".format(exe=er_index_exe, input=filename, pfile=pattern_file)
                             print(command)
                             csv_preamble = "eBWT r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "locate" + "," + str(plen) + "," + str(nopat) + ","
 
-                        running["er-index-locate"] = test(command, dname, filename, testRINDEX_log_path, csv_file, csv_preamble)
+                        running["er-index-locate"] = test(command, dname, filename+".eri", testRINDEX_log_path, csv_file, csv_preamble, filename+".stats")
 
                     if running["r-indexNicola-locate"]:
-                        # create pattern file
-                        print("Computing pattern file of " + filename)
-                        pattern_file = filename+"_"+str(plen)+"_"+str(nopat)+".pat"
-                        command = "{exe} {input} {len} {nop} {out} 1 0".format(exe=genpattern_exe, input=filename, len=plen, nop=nopat,
-                                                                               out=pattern_file)
-                        print("=== " + command)
-                        subprocess.check_output(command, shell=True)
                         # create count command 
-                        command = "{exe} {index} {pfile}".format(exe=r_index_nic_locate_exe, index=filename+".ri", pfile=pattern_file)
+                        command = "{exe} {index} {pfile}".format(exe=r_index_nic_locate_exe, index=filename2+".ri", pfile=pattern_file)
                         print(command)
                         csv_preamble = "r-index," + str(nseq) + "," + str(avglen) + "," + filename + "," + str(totlen) + "," + "locate" + "," + str(plen) + "," + str(nopat) + ","
 
-                        running["r-indexNicola-locate"] = test(command, dname, filename, testRINDEX_log_path, csv_file, csv_preamble)
+                        running["r-indexNicola-locate"] = test(command, dname, filename2+".ri", testRINDEX_log_path, csv_file, csv_preamble, filename2+".ri.stats")
 
                     print("Total length time: {0:.4f}".format(time.time()-start1), flush=True)
 
         print("Total experiment time: {0:.4f}".format(time.time()-start0), flush=True)
         print("==== Done")
 
-def test(command, base_filename, filename, log_path, csv_file, csv_preamble):
+def test(command, base_filename, filename, log_path, csv_file, csv_preamble, file_stat):
 
     logfile_name = os.path.join(log_path, base_filename + ".log")
     print("\nSending logging messages to file:", logfile_name, flush=True)
@@ -218,9 +202,16 @@ def test(command, base_filename, filename, log_path, csv_file, csv_preamble):
             cpu = cpu[1:-1]
 
         # complete csv line
-        csv_preamble += str(elapsed_time) + "," + str(rss) + "," + str(cpu) + "\n"
-        csv_file.write(csv_preamble)
+        csv_preamble += str(elapsed_time) + "," + str(rss) + "," + str(cpu)
+
+        f = open(file_stat, 'rb')
+        for i in range(5):
+            csv_preamble += ("," + str(struct.unpack('d', f.read(8))[0]))
+        csv_preamble += "\n"
+        f.close()
+        
         print(csv_preamble)
+        csv_file.write(csv_preamble)
 
     return ret
 

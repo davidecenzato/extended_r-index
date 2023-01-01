@@ -165,6 +165,9 @@ int main(int argc, char** argv)
     int64_t occ_tot=0;
     std::string pattern = std::string();
 
+    // initialize stats vector
+    std::vector<double> STAT(5,0);
+
     auto t3 = std::chrono::high_resolution_clock::now();
 
     if(arg.query==0){
@@ -187,61 +190,74 @@ int main(int argc, char** argv)
 
   		double occ_avg = (double)occ_tot / noSeq;
 
-  		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
-  }
-  else if(arg.query>=1)
-  {
-    std::cout << "Computing locate queries..." << std::endl;
-    // initialize output file
-    FILE * occ;
-    if(arg.query==2)
-    {
-    std::string output_file  = arg.filename + ".occ";
-    // open output file
-    occ = fopen(output_file.c_str(),"w+");
-    }
-		//extract patterns from file and search them in the index
-		for(int64_t i=0; i<noSeq; ++i){
+      STAT[0] = occ_tot; STAT[1] = occ_avg;
 
-  		perc = (100*i)/noSeq;
-  		if( perc > last_perc ){
-  			std::cout << perc << "% done ..." << std::endl;
-  			last_perc = perc;
+  		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
+    }
+    else if(arg.query>=1)
+    {
+      std::cout << "Computing locate queries..." << std::endl;
+      // initialize output file
+      FILE * occ;
+      if(arg.query==2)
+      {
+      std::string output_file  = arg.filename + ".occ";
+      // open output file
+      occ = fopen(output_file.c_str(),"w+");
+      }
+
+  		//extract patterns from file and search them in the index
+  		for(int64_t i=0; i<noSeq; ++i){
+
+    		perc = (100*i)/noSeq;
+    		if( perc > last_perc ){
+    			std::cout << perc << "% done ..." << std::endl;
+    			last_perc = perc;
+    		}
+
+    		getline(ifs, pattern);
+    		getline(ifs, pattern);
+
+    		auto OCC = idx.locate_all(pattern,arg.first);
+
+        if(arg.query==2 && OCC.size() > 0) fwrite(&OCC[0],5,OCC.size(),occ);
+    		
+    		occ_tot += OCC.size();
+
   		}
 
-  		getline(ifs, pattern);
-  		getline(ifs, pattern);
+  		double occ_avg = (double)occ_tot / noSeq;
 
-  		auto OCC = idx.locate_all(pattern,arg.first);
+      STAT[0] = occ_tot; STAT[1] = occ_avg;
 
-      if(arg.query==2 && OCC.size() > 0) fwrite(&OCC[0],5,OCC.size(),occ);
-  		
-  		occ_tot += OCC.size();
+  		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
 
-		}
+  		if(arg.query==2) fclose(occ);
+  	}
 
-		double occ_avg = (double)occ_tot / noSeq;
+    ifs.close();
 
-		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
+    auto t4 = std::chrono::high_resolution_clock::now();
 
-		if(arg.query==2) fclose(occ);
-	}
+    uint64_t load = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+    std::cout << "Load time : " << load << " milliseconds" << std::endl;
 
-  ifs.close();
+    uint64_t search = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
+    std::cout << "number of patterns n = " << noSeq << std::endl;
+    //cout << "pattern length m = " << m << endl;
+    std::cout << "total number of occurrences  occ_t = " << occ_tot << std::endl;
 
-  auto t4 = std::chrono::high_resolution_clock::now();
+    std::cout << "Total time : " << search << " milliseconds" << std::endl;
+    std::cout << "Search time : " << (double)search/noSeq << " milliseconds/pattern (total: " << noSeq << " patterns)" << std::endl;
+    std::cout << "Search time : " << (double)search/occ_tot << " milliseconds/occurrence (total: " << occ_tot << " occurrences)" << std::endl;
 
-  uint64_t load = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-  std::cout << "Load time : " << load << " milliseconds" << std::endl;
+    STAT[2] = search; STAT[3] = (double)search/noSeq ; STAT[4] = (double)search/occ_tot;
 
-  uint64_t search = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
-  std::cout << "number of patterns n = " << noSeq << std::endl;
-  //cout << "pattern length m = " << m << endl;
-  std::cout << "total number of occurrences  occ_t = " << occ_tot << std::endl;
+    std::string stat_file  = arg.filename + ".stats";
+    FILE * stat = fopen(stat_file.c_str(),"w");
+    fwrite(&STAT[0],sizeof(double),5,stat);
+    fclose(stat);
 
-  std::cout << "Total time : " << search << " milliseconds" << std::endl;
-  std::cout << "Search time : " << (double)search/noSeq << " milliseconds/pattern (total: " << noSeq << " patterns)" << std::endl;
-  std::cout << "Search time : " << (double)search/occ_tot << " milliseconds/occurrence (total: " << occ_tot << " occurrences)" << std::endl;
   }
   else
   {
