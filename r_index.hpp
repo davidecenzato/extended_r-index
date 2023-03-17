@@ -1,3 +1,10 @@
+/*
+ * Implementation of the extended r-index.
+ * 
+ * This code is adapted from https://github.com/nicolaprezza/r-index.git
+ *
+ */
+
 #ifndef R_INDEX_S_H_
 #define R_INDEX_S_H_
 
@@ -91,6 +98,23 @@ public:
 
 		return range;
 	}
+	/*
+	range_t count_(std::string &P){
+
+		uint_t m = P.size();
+
+		char c = P[m-1];
+		if( bwt.C_p[c] == 0 ) return {1,0};
+		range_t range = {bwt.C[c], bwt.C[c] + bwt.letter_size(c) - 1};
+
+		for(int64_t i=1; i<m and range.second >= range.first; ++i){
+			// get new range
+			range = LF_new(range,P[m-i-1]);
+		}
+
+		return range;
+	}
+	*/
 
 	/*
 	 * return the new range computed applying a LF step to range rn using character c
@@ -110,8 +134,23 @@ public:
 
 		return {l,l+c_inside-1};
 	}
-	
+	/*
+	range_t LF_(range_t rn, char c){
 
+		//if character does not appear in the text, return empty pair
+		if( bwt.C_p[c] == 0 ){ return {1,0}; }
+		//number of c before the interval
+		uint_t c_before = bwt.rank(rn.first,c,B);
+		//number of c inside the interval rn
+		uint_t c_inside = bwt.rank(rn.second+1,c,B) - c_before;
+		//if there are no c in the interval, return empty range
+		if( c_inside == 0 ) return {1,0};
+
+		uint_t l = bwt.C[c] + c_before;  // bwt.C[c] + bwt.rank(rn.second+1,c,B) - 1
+
+		return {l,l+c_inside-1};
+	}
+	*/
 	/*
 	 * return the predecessor of i in Conjugate array order
 	 */
@@ -225,7 +264,69 @@ public:
 		}
 		return {range, k};
 	}
+	/*
+	std::pair<range_t, uint_t> count_and_get_occ_(std::string &P){
+		// init variables
+		uint_t rnk, j, run_of_j, k, ks;
+		uint_t m = P.size();
+		char c = P[m-1];
+		if( bwt.C_p[c] == 0 ) return {{1,0},0};
 
+		// find first range
+		rnk = bwt.letter_size(c);
+		range_t range = {bwt.C[c], bwt.C[c] + rnk - 1};
+		// find first sample
+		rnk--;
+		j = bwt.select(rnk,c,B);
+		run_of_j = bwt.run_of_position(j);
+		k = phi.sample_last(run_of_j);
+		ks = phi.curr_start_pos(k);
+
+		range_t range1;
+
+		for(int64_t i=1;i<m and range.second>=range.first;++i){
+			// current character
+			c = P[m-i-1];
+			// new range computed with the LF step
+			range1 = LF_new(range,c);
+			//if suffix can be left-extended with char
+			if(range1.first <= range1.second){
+				// compute the last sample of the new interval 
+				if(bwt[range.second] == c){
+					// last c is at the end of range.
+					if( k > ks ){	k--;	}
+					else
+					{
+						k = phi.next_start_pos(k) - 1;
+					}
+				// else find new sample
+				}else{
+					// find last c in range (there must be one because range1 is not empty)
+					// and get its sample (must be sampled because it is at the end of a run)
+					// note: by previous check, bwt[range.second] != c, so we can use argument range.second
+					rnk = bwt.rank(range.second,c,B);
+					//this is the rank of the last c
+					rnk--;
+					//jump to the corresponding BWT position
+					j = bwt.select(rnk,c,B);
+					//run of position j
+					run_of_j = bwt.run_of_position(j);
+					// get sample
+					k = phi.sample_last(run_of_j);
+					// get new starting pos
+					ks = phi.curr_start_pos(k);
+					if( k != ks ){ k--; }
+					else
+					{
+						k = phi.next_start_pos(k)-1;
+					}
+				}
+			}
+			range = range1;
+		}
+		return {range, k};
+	}
+	*/
 	/*
 	 * locate all occurrences of P and return them in an array
 	 * (space consuming if result is big).
@@ -259,7 +360,37 @@ public:
 
 		return OCC;
 	}
+	/*
+	std::vector<uint_t> locate_all_(std::string& P, bool first = 0){
 
+		std::vector<uint_t> OCC;
+
+		std::pair<range_t, uint_t> res = count_and_get_occ_new(P);
+
+		uint_t L = std::get<0>(res).first;
+		uint_t R = std::get<0>(res).second;
+		uint_t k = std::get<1>(res);
+
+		//std::cout << L << " : " << R << " - " << k << "\n";
+
+		uint_t n_occ = R>=L ? (R-L)+1 : 0;
+		OCC.reserve(n_occ);
+		if(n_occ>0){
+			// push last sample as first occurrence 
+			OCC.push_back(k);
+			// for each other occurrence apply Phi step
+			for(uint_t i=1; i<n_occ; ++i){
+				// compute predecessor gCA value
+				if(first){ k = Phi_first(k); }
+				else{ k = Phi(k); }
+				// add occurrence
+				OCC.push_back(k);
+			}
+		}
+
+		return OCC;
+	}
+	*/
 	/* serialize the structure to the ostream
 	 * \param out	 the ostream
 	 */

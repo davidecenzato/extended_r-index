@@ -1,3 +1,10 @@
+/*
+ * Implementation of RLFM-index for the eBWT.
+ * 
+ * This code is adapted from https://github.com/nicolaprezza/r-index.git
+ *
+ */
+
 #ifndef RLE_EBWT_HPP_
 #define RLE_EBWT_HPP_
 
@@ -11,6 +18,8 @@ public:
 	sdsl::wt_huff<> bwt_heads;
 	// BWT C vector (F column)
 	std::vector<uint_t> C;
+	// present characters
+	//cstd::vector<bool> C_p;
 	// empty constructor
 	rle_ebwt(){}
 	/*
@@ -63,7 +72,7 @@ public:
 			std::cout << "\nNumber of eBWT equal-letter sampled runs: " << R << std::endl;
 		}
 	    // check BWT length
-	    #if M64 == 0
+	    #if M64
 	        // if we are in 32 bit mode, check that parse has less than 2^32-2 words
 	        if(BWTlength > pow(2,32) - 1){ 
 	            // the input file is too big
@@ -111,7 +120,7 @@ public:
 		// initialize C vector and R
 		C.resize(128);
 		// iterate over heads
-		uint64_t currLen = 0;
+		uint64_t currLen = 0, BWTlen = 0;
 		char currHead = 0;
 		// iterate over head vector
 		for(size_t i=0;i<R;++i){
@@ -124,6 +133,7 @@ public:
 				C[currHead] += currLen-1;
 				// insert lens[i]-1 0s
 				BWTlength += currLen-1;
+				BWTlen += currLen-1;
 			}
 			// create onset vector for letter bitvector
 			onset_letter[currHead].push_back(C[currHead]);
@@ -131,19 +141,21 @@ public:
 			if(i%B==B-1){ onset_main.push_back(BWTlength); }
 			// increase BWT length
 			BWTlength++;
+			BWTlen++;
 			// increase char counter
 			C[currHead]++;
 		}
 		// print stats
 		if(verbose)
 		{
-			std::cout << "eBWT length: " << BWTlength;
+			std::cout << "eBWT length: " << BWTlen;
 			std::cout << "\nNumber of eBWT equal-letter sampled runs: " << R << std::endl;
 		}
 	    // check BWT length
 	    #if M64 == 0
+	    	// std::cout << "entra";
 	        // if we are in 32 bit mode, check that parse has less than 2^32-2 words
-	        if(BWTlength > pow(2,32) - 1){ 
+	        if(BWTlen > pow(2,32) - 1){ 
 	            // the input file is too big
 	            std::cerr << "Error, the eBWT length is > 4.29 GB, please use ./er-index64. exiting..." << std::endl;
 	            exit(-1);
@@ -282,7 +294,7 @@ public:
 	 */
 	uint_t rank(uint_t i, char c, uint_t B){
 		// if c is not in the text
-		if(letter_bv[c].size()==0) return 0;
+		// if(letter_bv[c].size()==0) return 0;
 		// if i is equal the size of the eBWT
 		if(i==BWTlength) return letter_bv[c].size();
 		// get current run
@@ -317,6 +329,41 @@ public:
 
 		return letter_bv[c].select1(rk-1)+1+tail;
 	}
+
+	/*
+	uint_t rank_(uint_t i, char c, uint_t B){
+		// get current run
+		uint_t last_block = main_bv.rank1(i);
+		uint_t current_run = last_block*B;
+		// get first position of the previous block
+		uint_t pos = 0;
+		if( last_block>0 ){ pos = main_bv.select1(last_block-1)+1; }
+		// get distance between i and previous block
+		// assert(pos <= i);
+		uint_t dist = i-pos;
+		//otherwise, scan at most B runs
+		while(pos < i){
+			// get current run length
+			//pos += run_length(current_run);
+			pos += run_at(current_run);
+			current_run++;
+			// update the distance until we get to the
+			// correct run
+			if(pos<=i) dist = i-pos;
+		}
+		// get the correct run counter
+		if(pos>i) current_run--;
+		// assert(current_run<R);
+		//number of c runs before the current run
+		uint_t rk = bwt_heads.rank(current_run,c);
+		//number of c before i in the current run
+		uint_t tail = (bwt_heads[current_run]==c)*dist;
+		// in this case, either there are no c before position i
+		// or the current run is the first of a certin character
+		if(rk==0) return tail;
+
+		return letter_bv[c].select1(rk-1)+1+tail;
+	}*/
 
 	/*
 	 * position of i-th character c. i starts from 0!
@@ -378,6 +425,12 @@ public:
 		return w_bytes;
 	}
 
+	/*
+	uint_t letter_size(char c)
+	{
+		return letter_bv[c].size();
+	}*/
+
 	/* load the structure from the istream
 	 * \param in the istream
 	 */
@@ -388,6 +441,7 @@ public:
 		in.read((char*)&B,sizeof(B));
 		// load C vector
 		C = std::vector<uint_t>(128);
+		// C_p = std::vector<bool>(128,0);
 		in.read((char*)C.data(),128*sizeof(uint_t));
 		// load main bitvector
 		main_bv.load(in);
@@ -397,7 +451,8 @@ public:
 		std::vector<int> selChar; selChar.resize(nChar);
 		in.read((char*)selChar.data(),selChar.size()*sizeof(int));
 		letter_bv = std::vector<sd_vector>(128);
-		for(int j=0; j<selChar.size(); ++j){ letter_bv[selChar[j]].load(in); }
+		for(int j=0; j<selChar.size(); ++j)
+			{ letter_bv[selChar[j]].load(in); /*C_p[selChar[j]] = 1;*/ }
 		// load BWT heads
 		bwt_heads.load(in);
 

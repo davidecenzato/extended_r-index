@@ -1,5 +1,6 @@
 # compilation flags
-CCX_FLAGS=-std=c++11 -O3 -Wall -Wextra -pedantic -DNDEBUG -g -I /usr/local/include/ -L /usr/local/lib/
+#CCX_FLAGS=-std=c++11 -O3 -Wall -Wextra -pedantic -DNDEBUG -g -I /usr/local/include/ -L /usr/local/lib/
+CCX_FLAGS=-std=c++11 -Ofast -Wall -Wextra -pedantic -DNDEBUG -g -I /usr/local/include/ -L /usr/local/lib/
 #CCX_FLAGS=-std=c++11 -O3 -Wall -Wextra -pedantic -g -I /usr/local/include/ -L /usr/local/lib/
 CCX=g++
 

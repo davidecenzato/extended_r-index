@@ -12,7 +12,7 @@
 
 // struct containing command line parameters and other globals
 struct args {
-  uint_t B = 1;
+  uint_t B = 2;
   bool pfpebwt = false;
   std::string filename = "";
   std::string outname = "";
@@ -23,6 +23,7 @@ struct args {
   int query = -1;
   bool check = false; // debug only
   bool first = false;
+  bool pocc = false;
 };
 
 // function that prints the instructions for using the tool
@@ -30,8 +31,8 @@ void print_help(char** argv) {
   std::cout << "Usage: " << argv[ 0 ] << " <input filename> [options]" << std::endl;
   std::cout << "  Options: " << std::endl
         << "\t-c \tconstruct and store ebwt r-index, def. False" << std::endl
-        << "\t-q \tcompute count/locate queries ( 0 (count) | 1 (locate) | 2 (store occurrences) ), def. -1" << std::endl
-        << "\t-b B\tbitvector block size, def. 1" << std::endl
+        << "\t-q \tcompute count/locate queries ( 0 (count) | 1 (cout print no. occ.) | 2 (locate) | 3 (locate print occ.) ), def. -1" << std::endl
+        << "\t-b B\tbitvector block size, def. 2" << std::endl
         //<< "\t-i \tread pfpebwt files, def. false " << std::endl
         //<< "\t-s \tread input data from stream, def. False " << std::endl
         << "\t-f \tsampled first rotations, def. False " << std::endl
@@ -110,7 +111,7 @@ void parseArgs( int argc, char** argv, args& arg ) {
   // set pattern file path
   if(arg.patname == "") arg.patname = arg.filename+".pat";
   // check mode
-  if(!arg.build && (arg.query < 0 || arg.query > 2 ) ){ std::cerr << "Error! select a correct mode (either -c | -q 0 | -q 1 | -q 2).\n";  }
+  if(!arg.build && (arg.query < 0 || arg.query > 3 ) ){ std::cerr << "Error! select a correct mode (either -c | -q 0 | -q 1 | -q 2 | -q 3).\n";  }
 }
 
 int main(int argc, char** argv)
@@ -118,8 +119,6 @@ int main(int argc, char** argv)
   // translate command line arguments
   args arg;
   parseArgs(argc, argv, arg);
-  int c = 0;
-  assert(c != 0);
   // compute and store the r-Index of the eBWT
   if(arg.build){
     if( arg.verbose ){
@@ -170,23 +169,65 @@ int main(int argc, char** argv)
 
     auto t3 = std::chrono::high_resolution_clock::now();
 
-    if(arg.query==0){
+    if(arg.query < 2){
+      FILE * nocc, * ptime;
+      arg.pocc = (arg.query == 1);
       std::cout << "Computing count queries..." << std::endl;
+      if(arg.query == 1)
+      {
+        std::string output_file   = arg.patname + ".noccEBWT";
+        std::string output_file2  = arg.patname + ".timeEBWT";
+        // open output file
+        nocc  = fopen(output_file.c_str(), "w+");
+        ptime = fopen(output_file2.c_str(),"w+");
+      
   	  //extract patterns from file and search them in the index
-  		for(int64_t i=0; i<noSeq; ++i){
+      //if(arg.pocc){
+    		for(int64_t i=0; i<noSeq; ++i){
 
-  			perc = (100*i)/noSeq;
-  			if( perc > last_perc ){
-  				std::cout << perc << "% done ..." << std::endl;
-  				last_perc = perc;
-  			}
+    			perc = (100*i)/noSeq;
+    			if( perc > last_perc ){
+    				std::cout << perc << "% done ..." << std::endl;
+    				last_perc = perc;
+    			}
 
-  			getline(ifs, pattern);
-  			getline(ifs, pattern);
+    			getline(ifs, pattern);
+    			getline(ifs, pattern);
 
-  			auto rn = idx.count(pattern);
-  			occ_tot += rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
-  		}
+          auto before = std::chrono::high_resolution_clock::now();
+    			auto rn = idx.count(pattern);
+    			//occ_tot += rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
+          uint_t curr_occ = rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
+          auto after = std::chrono::high_resolution_clock::now();
+          fwrite(&curr_occ,4,1,nocc);
+          //double patt_time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+          //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count() << "\n";
+          std::chrono::duration<double, std::milli> patt_time = after - before;
+          float dur_patt = patt_time.count();
+          //std::cout << dur_patt << "\n";
+          fwrite(&dur_patt,sizeof(float),1,ptime);
+          occ_tot += curr_occ;
+    		}
+        // close output files
+        fclose(nocc); fclose(ptime);
+      }
+      else
+      {
+        for(int64_t i=0; i<noSeq; ++i){
+
+          perc = (100*i)/noSeq;
+          if( perc > last_perc ){
+            std::cout << perc << "% done ..." << std::endl;
+            last_perc = perc;
+          }
+
+          getline(ifs, pattern);
+          getline(ifs, pattern);
+
+          auto rn = idx.count(pattern);
+          occ_tot += rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
+        }
+      }
 
   		double occ_avg = (double)occ_tot / noSeq;
 
@@ -194,37 +235,58 @@ int main(int argc, char** argv)
 
   		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
     }
-    else if(arg.query>=1)
+    else if(arg.query > 1)
     {
       std::cout << "Computing locate queries..." << std::endl;
       // initialize output file
       FILE * occ;
-      if(arg.query==2)
+      if(arg.query==3)
       {
-      std::string output_file  = arg.filename + ".occ";
-      // open output file
-      occ = fopen(output_file.c_str(),"w+");
-      }
+        std::string output_file  = arg.filename + ".occ";
+        // open output file
+        occ = fopen(output_file.c_str(),"w+");
 
-  		//extract patterns from file and search them in the index
-  		for(int64_t i=0; i<noSeq; ++i){
+    		//extract patterns from file and search them in the index
+    		for(int64_t i=0; i<noSeq; ++i){
 
-    		perc = (100*i)/noSeq;
-    		if( perc > last_perc ){
-    			std::cout << perc << "% done ..." << std::endl;
-    			last_perc = perc;
+      		perc = (100*i)/noSeq;
+      		if( perc > last_perc ){
+      			std::cout << perc << "% done ..." << std::endl;
+      			last_perc = perc;
+      		}
+
+      		getline(ifs, pattern);
+      		getline(ifs, pattern);
+
+      		auto OCC = idx.locate_all(pattern,arg.first);
+
+          if(OCC.size() > 0) fwrite(&OCC[0],5,OCC.size(),occ);
+      		
+      		occ_tot += OCC.size();
     		}
+        // close output file
+        if(arg.query==3) fclose(occ);
+      }
+      else
+      {
+        //extract patterns from file and search them in the index
+        for(int64_t i=0; i<noSeq; ++i){
 
-    		getline(ifs, pattern);
-    		getline(ifs, pattern);
+          perc = (100*i)/noSeq;
+          if( perc > last_perc ){
+            std::cout << perc << "% done ..." << std::endl;
+            last_perc = perc;
+          }
 
-    		auto OCC = idx.locate_all(pattern,arg.first);
+          getline(ifs, pattern);
+          getline(ifs, pattern);
 
-        if(arg.query==2 && OCC.size() > 0) fwrite(&OCC[0],5,OCC.size(),occ);
-    		
-    		occ_tot += OCC.size();
+          auto OCC = idx.locate_all(pattern,arg.first);
+          
+          occ_tot += OCC.size();
 
-  		}
+        }
+      }
 
   		double occ_avg = (double)occ_tot / noSeq;
 
@@ -232,7 +294,6 @@ int main(int argc, char** argv)
 
   		std::cout << std::endl << occ_avg << " average occurrences per pattern" << std::endl;
 
-  		if(arg.query==2) fclose(occ);
   	}
 
     ifs.close();

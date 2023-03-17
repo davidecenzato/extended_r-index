@@ -1,3 +1,10 @@
+/*
+ * Implementation of the predecessor data structure for the GCA.
+ * 
+ * This code is adapted from https://github.com/nicolaprezza/r-index.git
+ *
+ */
+
 #ifndef PRED_EBWT_HPP_
 #define PRED_EBWT_HPP_
 
@@ -45,12 +52,12 @@ public:
 		std::vector<uint_t> onset_vec;
 		// read samples first offsets
 		read_file(s_pos_file.c_str(),onset_vec);
-		BWT_length = onset_vec[onset_vec.size()-1];
+		uint_t BWT_length = onset_vec[onset_vec.size()-1];
 		// construct bit vector of string delimiters
 		delim = sd_vector(onset_vec,BWT_length+1);
 		// read heads file
 		read_file(s_sample_file.c_str(),samples_first_vec);
-		r = samples_first_vec.size();
+		uint_t r = samples_first_vec.size();
 		indices.reserve(r);
 		for(uint_t i=0;i<r;++i){ indices.push_back(i); }
 		// sort indices
@@ -100,18 +107,18 @@ public:
 	}
 
 	// 2nd constructor
-	pred_ebwt(std::ifstream& s_sample_file, std::ifstream& e_sample_file, std::ifstream& s_pos_file, uint_t BWT_length_,
+	pred_ebwt(std::ifstream& s_sample_file, std::ifstream& e_sample_file, std::ifstream& s_pos_file, uint_t BWT_length,
 		      int isize, bool verbose = false, bool first = false){
 		// input vectors
 		std::vector<uint_t> samples_first_vec;
 		std::vector<uint_t> indices;
 		// set BWT length
-		BWT_length = BWT_length_;
+		// BWT_length = BWT_length_;
 		// construct bit vector of string delimiters
 		delim = sd_vector(s_pos_file,BWT_length+1,isize);
 		// read heads file
 		s_sample_file.seekg(0, std::ios::end);
-		r = s_sample_file.tellg()/isize;
+		uint_t r = s_sample_file.tellg()/isize;
     	s_sample_file.seekg(0, std::ios::beg);
     	// read first samples
 		samples_first_vec.resize(r);
@@ -153,7 +160,11 @@ public:
 			uint_t prnk = 0;
 			for(uint_t i=1; i<delim.rank1(delim.size()); ++i){
 				uint_t rnk = pred.rank1(delim.select1(i));
-				if(prnk == rnk){ std::cerr << "Error in .ssam file, sample missing! Please restart computation using --first flag.\n"; exit(1); }
+				if(prnk == rnk){
+					std::cerr << "Error in .ssam file, sample missing! Please restart computation using --first flag.\n";
+					std::cerr << "Sample missing in string number: " << i << "\n";
+					exit(1);
+				}
 				prnk = rnk;
 			}
 		}
@@ -163,7 +174,9 @@ public:
 			delim.construct_rank_ds();
 			for(uint_t i=0; i<delim.rank1(delim.size())-1; ++i){
 				if( !pred.at(delim.select1(i)) )
-				{ std::cerr << "Error in .ssam file, sample missing in string number: " << i+1 << "\n"; exit(1); }
+				{ std::cerr << "Error in .ssam file, sample missing in string number: " << i+1 << "\n";
+				  exit(1);
+				}
 			}
 		}
 		//text positions corresponding to last characters in BWT runs, in BWT order
@@ -182,6 +195,7 @@ public:
 	/*
  	 *  construct rank select data structures for all bitvectors
  	 */
+	/*
 	void construct_rank_select_dt(){
 		// rank select for main bitvector
 		pred.construct_rank_ds();
@@ -189,7 +203,7 @@ public:
 		// rank select for main bitvector
 		delim.construct_rank_ds();
 		delim.construct_select_ds();
-	}
+	}*/
 
 	/*
  	 *  compute the rank of the circular predecessor of i. Returns a tuple containing
@@ -260,16 +274,16 @@ public:
 	/*
 		return no. of runs of the ebwt
 	*/
-	uint_t no_runs(){
-		return r;
-	}
+	//uint_t no_runs(){
+	//	return r;
+	//}
 
 	/*
 		return eBWT length
 	*/
-	uint_t bwt_len(){
-		return BWT_length;
-	}
+	//uint_t bwt_len(){
+	//	return BWT_length;
+	//}
 
 	/*
 		return the mapping between a beginning sample
@@ -293,12 +307,13 @@ public:
 
 		uint_t w_bytes = 0;
 
-		out.write((char*)&BWT_length,sizeof(BWT_length));
-		out.write((char*)&r,         sizeof(r));
+		//out.write((char*)&BWT_length,sizeof(BWT_length));
+		//out.write((char*)&r,         sizeof(r));
 
-		w_bytes += sizeof(BWT_length) + sizeof(r);
+		//w_bytes += sizeof(BWT_length) + sizeof(r);
 
-		if(BWT_length==0) return w_bytes;
+
+		//if(BWT_length==0) return w_bytes;
 
 		w_bytes += pred.serialize(out);
 		w_bytes += delim.serialize(out);
@@ -313,8 +328,8 @@ public:
 	 */
 	void load(std::istream& in) {
 
-		in.read((char*)&BWT_length,sizeof(BWT_length));
-		in.read((char*)&r,         sizeof(r));
+		//in.read((char*)&BWT_length,sizeof(BWT_length));
+		//in.read((char*)&r,         sizeof(r));
 
 		pred.load(in);
 		delim.load(in);
@@ -330,9 +345,9 @@ private:
 	// stores the BWT run (0...R-1) corresponding to each position in pred, in text order
 	sdsl::int_vector<> first_to_run; 
 	// BWT length
-	uint_t BWT_length;
+	// uint_t BWT_length;
 	// no runs
-	uint_t r;
+	// uint_t r;
 
 };
 

@@ -1,3 +1,10 @@
+/*
+ * Construction of the Elias-Fano compressed bitvectors
+ * 
+ * This code is adapted from https://github.com/nicolaprezza/r-index.git
+ *
+ */
+
 #ifndef SD_VECTOR_HPP_
 #define SD_VECTOR_HPP_
 

@@ -22,7 +22,7 @@ int main (int argc, char **argv)
 			 "  randomly extracts <number> substrings of length <length> from <file>,\n" <<
 			 "  The output file, <patterns file> is a fasta file with one pattern per line\n" <<
 			 "  <circular> is a flag, if circular=0 it gives in output only linear pattern,\n  if circular=1 both linear and circular patterns are computed.\n" <<
-			 "  <verbose> is a flag, if verbose=0 no message is writte,\n if verbose=1 the verbose mode is switched one\n";
+			 "  <verbose> is a flag, if verbose=0 no message is written,\n if verbose=1 the verbose mode is switched one\n";
 		exit(1);
 	}
 
@@ -35,6 +35,7 @@ int main (int argc, char **argv)
 	std::string ofile_name = argv[4];
 	bool circular = atoi(argv[5]);
 	bool verbose = atoi(argv[6]);
+	int64_t no_circ = 0;
 
 	// print input parameters
 	if( verbose )
@@ -122,6 +123,7 @@ int main (int argc, char **argv)
 			input.read(buffer,(ending - pat_pos + 1));
 			input.seekg(beginning, std::ios::beg);
 			input.read(&buffer[(ending - pat_pos + 1)],plen-(ending - pat_pos + 1));
+			no_circ++;
 		}
 		else
 		{	
@@ -136,6 +138,8 @@ int main (int argc, char **argv)
 		putc('\n', ofile);
 		npat--;
 	}
+
+	std::cout << "Done! number of sampled circular pattern: " << no_circ << "\n";
 
 	input.close();
 	fclose(ofile);
