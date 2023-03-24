@@ -88,4 +88,4 @@ target_compile_options(bebwtNT64.x PUBLIC "-DM64")
 target_compile_options(bebwtNT64.x PUBLIC "-DP64")
 
 
-configure_file(${PROJECT_SOURCE_DIR}/er-index ${PROJECT_BINARY_DIR}/er-index)
+# configure_file(${PROJECT_SOURCE_DIR}/ext_r-index.py ${PROJECT_BINARY_DIR}/ext_r-index.py)

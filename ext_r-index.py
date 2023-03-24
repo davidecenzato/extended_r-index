@@ -30,7 +30,7 @@ def main():
     #parser.add_argument('--query', help='compute count and locate queries (def. False)', action='store_true')
     parser.add_argument('--pfile', help='pattern file path (def. <input filename.pat>)', default="", type=str)
     parser.add_argument('--count', help='compute count queries (def. False)', action='store_true')
-    parser.add_argument('--locate', help='compute either count or locate queries (def. False)', action='store_true')
+    parser.add_argument('--locate', help='compute locate queries (def. False)', action='store_true')
     parser.add_argument('--verbose',  help='verbose (def. False)',action='store_true')
     #parser.add_argument('-d',  help='use remainders instead of primes (def. False)',action='store_true')
     #parser.add_argument('--reads', help='process input ad a reads multiset (def. False)', action='store_true')
@@ -176,38 +176,39 @@ def main():
             print("Original input size: " + str(input_size) + " bytes" )
             print("Extended r-index size: " + str(index_size) + " bytes" )
 
-    ## queries
-    if( args.count ):
-        f = open(args.input+".mode", "r")
-        mode = int(f.read())
-        f.close()
-        if(mode > 32):
-            command = "{exe} {file} -q 0 -p {pfile} ".format(
-            exe = os.path.join(args.extrindex_dir,extrindex64_exe),
-            file=args.input, pfile=args.pfile)
-        else:
-            command = "{exe} {file} -q 0 -p {pfile} ".format(
-            exe = os.path.join(args.extrindex_dir,extrindex_exe),
-            file=args.input, pfile=args.pfile)
-        if(args.first): command += " -f"
-        print("==== Computing count queries. Command:", command)
-        subprocess.check_call( command.split() )
+        ## queries
+        print("qua")
+        if( args.count ):
+            f = open(args.input+".mode", "r")
+            mode = int(f.read())
+            f.close()
+            if(mode > 32):
+                command = "{exe} {file} -q 0 -p {pfile} ".format(
+                exe = os.path.join(args.extrindex_dir,extrindex64_exe),
+                file=args.input, pfile=args.pfile)
+            else:
+                command = "{exe} {file} -q 0 -p {pfile} ".format(
+                exe = os.path.join(args.extrindex_dir,extrindex_exe),
+                file=args.input, pfile=args.pfile)
+            if(args.first): command += " -f"
+            print("==== Computing count queries. Command:", command)
+            subprocess.check_call( command.split() )
 
-    if( args.locate ):
-        f = open(args.input+".mode", "r")
-        mode = int(f.read())
-        f.close()
-        if(mode > 32):
-            command = "{exe} {file} -q 2 -p {pfile} ".format(
-            exe = os.path.join(args.extrindex_dir,extrindex64_exe),
-            file=args.input, pfile=args.pfile)
-        else:
-            command = "{exe} {file} -q 2 -p {pfile} ".format(
-            exe = os.path.join(args.extrindex_dir,extrindex_exe),
-            file=args.input, pfile=args.pfile)
-        if(args.first): command += " -f"
-        print("==== Computing locate queries. Command:", command)
-        subprocess.check_call( command.split() )
+        if( args.locate ):
+            f = open(args.input+".mode", "r")
+            mode = int(f.read())
+            f.close()
+            if(mode > 32):
+                command = "{exe} {file} -q 2 -p {pfile} ".format(
+                exe = os.path.join(args.extrindex_dir,extrindex64_exe),
+                file=args.input, pfile=args.pfile)
+            else:
+                command = "{exe} {file} -q 2 -p {pfile} ".format(
+                exe = os.path.join(args.extrindex_dir,extrindex_exe),
+                file=args.input, pfile=args.pfile)
+            if(args.first): command += " -f"
+            print("==== Computing locate queries. Command:", command)
+            subprocess.check_call( command.split() )
 
 
 # execute command: return True is everything OK, False otherwise
