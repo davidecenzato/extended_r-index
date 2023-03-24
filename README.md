@@ -1,7 +1,7 @@
 # Extended r-index
 
 The extended r-index is a tool implementing the extended r-index data structure for string collections.
-The code id adapted from the r-index by Nicola Prezza, Travis Gagie and Gonzalo Navarro (https://github.com/nicolaprezza/r-index). 
+The code in this repository is adapted from the r-index by Nicola Prezza, Travis Gagie and Gonzalo Navarro (https://github.com/nicolaprezza/r-index). 
 
 # Usage
 
