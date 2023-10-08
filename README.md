@@ -30,6 +30,14 @@ options:
 The extended r-index construction using the cyclic PFP algorithm is enabled using the `--construction` flag. The count and locate queries computation
 is enabled using the `--count` and `--locate` flag, the file containing the patterns, in fasta format, is defined using the `--pfile` flag.
 
+### Requirements
+
+The extended r-index tool requires:
+* A modern C++17 compiler such as `g++` version 11.3 or higher.
+* A modern Python 3 release such as Python 3.7 or higher.
+* The cmake build system version 3.15 or higher.
+* A 64-bit operating system. Only Linux is currently supported.
+
 # Example
 ### Download and Compile
 

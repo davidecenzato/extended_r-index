@@ -5,8 +5,6 @@
 
 // algorithms for computing different BWT variants
 #include "r_index.hpp"
-// memory counter
-#include "external/malloc_count/malloc_count.h"
 // fasta reader function
 #include "IOfunc.hpp"
 
@@ -167,6 +165,8 @@ int main(int argc, char** argv)
     // initialize stats vector
     std::vector<double> STAT(5,0);
 
+    size_t query_time = 0;
+
     auto t3 = std::chrono::high_resolution_clock::now();
 
     if(arg.query < 2){
@@ -224,8 +224,11 @@ int main(int argc, char** argv)
           getline(ifs, pattern);
           getline(ifs, pattern);
 
+          auto before = std::chrono::high_resolution_clock::now();
           auto rn = idx.count(pattern);
+          auto after = std::chrono::high_resolution_clock::now();
           occ_tot += rn.second>=rn.first ? (rn.second-rn.first)+1 : 0;
+          query_time += std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
         }
       }
 
@@ -281,7 +284,10 @@ int main(int argc, char** argv)
           getline(ifs, pattern);
           getline(ifs, pattern);
 
+          auto before = std::chrono::high_resolution_clock::now();
           auto OCC = idx.locate_all(pattern,arg.first);
+          auto after = std::chrono::high_resolution_clock::now();
+          query_time += std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
           
           occ_tot += OCC.size();
 
@@ -308,11 +314,14 @@ int main(int argc, char** argv)
     //cout << "pattern length m = " << m << endl;
     std::cout << "total number of occurrences  occ_t = " << occ_tot << std::endl;
 
-    std::cout << "Total time : " << search << " milliseconds" << std::endl;
-    std::cout << "Search time : " << (double)search/noSeq << " milliseconds/pattern (total: " << noSeq << " patterns)" << std::endl;
-    std::cout << "Search time : " << (double)search/occ_tot << " milliseconds/occurrence (total: " << occ_tot << " occurrences)" << std::endl;
+    //std::cout << "Total time : " << search << " milliseconds" << std::endl;
+    std::cout << "Total time : " << (double)query_time/1000000 << " milliseconds" << std::endl;
+    //std::cout << "Search time : " << (double)search/noSeq << " milliseconds/pattern (total: " << noSeq << " patterns)" << std::endl;
+    //std::cout << "Search time : " << (double)search/occ_tot << " milliseconds/occurrence (total: " << occ_tot << " occurrences)" << std::endl;
+    std::cout << "Search time : " << ((double)query_time/1000000)/noSeq << " milliseconds/pattern (total: " << noSeq << " patterns)" << std::endl;
+    std::cout << "Search time : " << ((double)query_time/1000000)/occ_tot << " milliseconds/occurrence (total: " << occ_tot << " occurrences)" << std::endl;
 
-    STAT[2] = search; STAT[3] = (double)search/noSeq ; STAT[4] = (double)search/occ_tot;
+    STAT[2] = (double)query_time/1000000; STAT[3] = ((double)query_time/1000000)/noSeq; STAT[4] = ((double)query_time/1000000)/occ_tot;
 
     std::string stat_file  = arg.filename + ".stats";
     FILE * stat = fopen(stat_file.c_str(),"w");

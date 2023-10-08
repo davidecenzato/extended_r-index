@@ -7,21 +7,20 @@
 
 // sdsl bit vector functions
 #include <sdsl/bit_vectors.hpp>
-// memory counter
-#include "external/malloc_count/malloc_count.h"
 
 int main (int argc, char **argv)
 {
 
 	FILE *ofile;
 
-	if (argc < 6)
+	if (argc < 7)
 	{
 		std::cerr <<
 			 "Usage: genpatterns <file> <length> <number> <patterns file> <circular> <verbose>\n" <<
 			 "  randomly extracts <number> substrings of length <length> from <file>,\n" <<
 			 "  The output file, <patterns file> is a fasta file with one pattern per line\n" <<
 			 "  <circular> is a flag, if circular=0 it gives in output only linear pattern,\n  if circular=1 both linear and circular patterns are computed.\n" <<
+			 "  <concat> is a flag, if concat = 1 it formats the output file concatenating the patterns\n" <<
 			 "  <verbose> is a flag, if verbose=0 no message is written,\n if verbose=1 the verbose mode is switched one\n";
 		exit(1);
 	}
@@ -34,7 +33,8 @@ int main (int argc, char **argv)
 	int64_t npat = atoi(argv[3]);
 	std::string ofile_name = argv[4];
 	bool circular = atoi(argv[5]);
-	bool verbose = atoi(argv[6]);
+	bool concFormat = atoi(argv[6]);
+	bool verbose = atoi(argv[7]);
 	int64_t no_circ = 0;
 
 	// print input parameters
@@ -105,6 +105,11 @@ int main (int argc, char **argv)
 
 	// initialize output file
 	ofile = fopen(ofile_name.c_str(), "w+");
+	if( concFormat )
+	{
+		std::string header = "# number=" + std::to_string(npat) + " length=" + std::to_string(plen) + " file=pfile forbidden=\n"; 
+		fwrite (&header[0] , sizeof(char), header.size(), ofile);
+	}
 	int64_t pat_id = 0;
 	while( npat > 0 )
 	{
@@ -130,12 +135,20 @@ int main (int argc, char **argv)
 			input.seekg(pat_pos, std::ios::beg);
 			input.read(buffer,plen);
 		}
-		pat_id++;
-		std::string header = (std::string)">Pattern" + std::to_string(pat_id) + (std::string)"\n";
-		fwrite (&header[0] , sizeof(char), header.size(), ofile);
-		//ofile << header;
-		fwrite (buffer , sizeof(char), plen, ofile);
-		putc('\n', ofile);
+
+		if( !concFormat )
+		{
+			pat_id++;
+			std::string header = (std::string)">Pattern" + std::to_string(pat_id) + (std::string)"\n";
+			fwrite (&header[0] , sizeof(char), header.size(), ofile);
+			//ofile << header;
+			fwrite (buffer , sizeof(char), plen, ofile);
+			putc('\n', ofile);
+		}
+		else
+		{
+			fwrite (buffer , sizeof(char), plen, ofile);
+		}
 		npat--;
 	}
 

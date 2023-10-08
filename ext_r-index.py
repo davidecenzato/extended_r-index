@@ -177,7 +177,6 @@ def main():
             print("Extended r-index size: " + str(index_size) + " bytes" )
 
         ## queries
-        print("qua")
         if( args.count ):
             f = open(args.input+".mode", "r")
             mode = int(f.read())

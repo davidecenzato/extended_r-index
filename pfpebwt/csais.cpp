@@ -149,7 +149,7 @@ void cSAIS(uint_s *s, uint_s *SA, size_t n, size_t K, size_t cs, int level, sd_v
             } 
         }
         // mismatch not found!
-        if(fl==eb+1){cerr << "Error! Sequence without a mismatch detected. Removal of periodic strings not yet implemented. Exiting..." << endl; exit(1);}
+        if(fl==eb+1){cerr << "Error! Sequence without a mismatch detected. Removal of periodic strings not yet implemented. Exiting... " << endl; cerr << i+1 << endl; exit(1);}
         else{
           // Classify the S* suffixes
           uint_s pos, prev; prev=fl; 
