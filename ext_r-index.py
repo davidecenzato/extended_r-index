@@ -23,7 +23,8 @@ def main():
     parser.add_argument('-w', '--wsize', help='sliding window size for PFP (def. 10)', default=10, type=int)
     parser.add_argument('-p', '--mod', help='hash modulus for PFP (def. 100)', default=100, type=int)
     parser.add_argument('-b', '--B', help='bitvector block size for predecessor queries (def. 2)', default=2, type=int)
-    parser.add_argument('--first', help='sample first rotation of each sequence (def. False)', action='store_true')
+    #parser.add_argument('--first', help='sample first rotation of each sequence (def. False)', action='store_true')
+    parser.add_argument('--nofirst', help='do not sample the first rotation of each sequence (def. True)', action='store_false')
     #parser.add_argument('-a', '--algo', help='eBWT construction algorithm (def. bigbwt)', default="bigbwt", type=str)
     #parser.add_argument('-t', help='number of helper threads (def. None)', default=0, type=int)
     #parser.add_argument('-n', help='number of different primes (def. 1)', default=1, type=int)
@@ -134,7 +135,7 @@ def main():
             # output the GCA-samples
             command += " -s"
             # sample the first rotation of each sequence
-            if(args.first): command += " -f"
+            if(args.nofirst): command += " -f"
             print("==== Computing the eBWT and the GCA-samples of the input. Command:", command)
             if(execute_command(command,logfile,logfile_name)!=True):
                 return
